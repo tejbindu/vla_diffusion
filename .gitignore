@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Cloned external repo -- scripts/setup_libero.sh recreates this
+third_party/LIBERO/
+
+# Datasets and LIBERO's local config (paths are machine-specific)
+/data/
+.libero_config/
+
+# Training artifacts
+outputs/
+wandb/
+*.ckpt
+*.pt
+*.pth
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
