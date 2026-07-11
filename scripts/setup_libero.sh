@@ -27,12 +27,23 @@ echo "Installing LIBERO (editable, no deps -- we manage the stack via uv)..."
 # works fine since `libero.libero` etc. resolve as implicit namespace packages.
 uv pip install -e "$LIBERO_DIR" --no-deps --config-settings editable_mode=compat
 
-echo "Installing LIBERO's two hard runtime deps at the API versions its code expects..."
+echo "Installing LIBERO's hard runtime deps at the API versions its code expects..."
 # LIBERO's own requirements.txt pins numpy==1.22.4 / robosuite==1.4.0 / etc,
-# which would clobber our modern stack if installed with full deps. bddl and
-# robomimic are the two packages LIBERO's code actually imports at runtime
-# that aren't already in our stack, so we pin just those, with --no-deps.
-uv pip install "bddl==1.0.1" "robomimic==0.2.0" "gym" --no-deps
+# which would clobber our modern stack if installed with full deps. These are
+# the packages LIBERO's code actually imports at runtime that aren't already
+# in our stack (found by actually running the pipeline, not by guessing --
+# each one below was a real ModuleNotFoundError), installed with --no-deps
+# so their own stale transitive pins don't touch numpy/torch/robosuite.
+uv pip install "bddl==1.0.1" "robomimic==0.2.0" "gym" "future" "easydict" "cloudpickle" "thop" --no-deps
+
+# robosuite>=1.5 renamed environments/manipulation/single_arm_env.py ->
+# manipulation_env.py, breaking LIBERO's imports outright, so robosuite is
+# pinned to 1.4.1 in pyproject.toml (`uv sync` above already installed it).
+# mujoco is pinned to 3.1.6 there too: robosuite 1.4.1's controller code
+# calls mujoco.mj_fullM() with a signature that mujoco>=3.10 no longer
+# accepts (TypeError at env reset). 3.1.6 is contemporaneous with when
+# robosuite 1.4.1 shipped and is confirmed working end-to-end (env reset +
+# step + closed-loop rollout all verified).
 
 echo "Seeding non-interactive LIBERO config..."
 export LIBERO_CONFIG_PATH="$REPO_ROOT/.libero_config"
@@ -54,8 +65,9 @@ print('LIBERO OK. Available suites:', list(bm_dict.keys()))
 "
 
 echo ""
-echo "Done. Add this to your shell profile (or source .env) so LIBERO_CONFIG_PATH"
-echo "is set in every session, including on the vast.ai box:"
+echo "Done. Add these to your shell profile (or source .env) in every session,"
+echo "including on the vast.ai box:"
 echo "  export LIBERO_CONFIG_PATH=\"$LIBERO_CONFIG_PATH\""
+echo "  export MUJOCO_GL=egl   # headless rendering; needed for env.reset()/step() to actually render"
 echo ""
 echo "Next: download a task-suite subset with scripts/download_libero_data.py"
