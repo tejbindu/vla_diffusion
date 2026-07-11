@@ -45,8 +45,8 @@ class LiberoChunkDataset(Dataset):
 
         if action_stats is None:
             all_actions = np.concatenate(all_actions, axis=0)
-            self.action_min = all_actions.min(axis=0)
-            self.action_max = all_actions.max(axis=0)
+            self.action_min = all_actions.min(axis=0).astype(np.float32)
+            self.action_max = all_actions.max(axis=0).astype(np.float32)
         else:
             self.action_min = np.array(action_stats["min"], dtype=np.float32)
             self.action_max = np.array(action_stats["max"], dtype=np.float32)
@@ -64,11 +64,11 @@ class LiberoChunkDataset(Dataset):
     def normalize_action(self, a):
         rng = self.action_max - self.action_min
         rng = np.where(rng < 1e-6, 1.0, rng)
-        return 2 * (a - self.action_min) / rng - 1
+        return (2 * (a - self.action_min) / rng - 1).astype(np.float32)
 
     def denormalize_action(self, a):
         rng = self.action_max - self.action_min
-        return (a + 1) / 2 * rng + self.action_min
+        return ((a + 1) / 2 * rng + self.action_min).astype(np.float32)
 
     def action_stats_dict(self):
         return {"min": self.action_min.tolist(), "max": self.action_max.tolist()}

@@ -6,26 +6,7 @@ the frozen vision-language fusion trunk (Week 4) are added on top of it.
 import torch
 import torch.nn as nn
 
-
-class SimpleCNNEncoder(nn.Module):
-    def __init__(self, out_dim=128):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(3, 32, 5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, 5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 3, stride=2, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 3, stride=2, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
-        )
-        self.proj = nn.Linear(64, out_dim)
-
-    def forward(self, x):
-        return self.proj(self.net(x))
+from vla_diffusion.models.encoders import SimpleCNNEncoder
 
 
 class BCMLPPolicy(nn.Module):

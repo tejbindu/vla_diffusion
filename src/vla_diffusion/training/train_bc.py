@@ -8,7 +8,6 @@ This exists to validate the full data -> train -> checkpoint pipeline before
 the diffusion action head (Week 3) replaces the MLP head.
 """
 import argparse
-import glob
 import json
 import os
 
@@ -17,6 +16,8 @@ from torch.utils.data import DataLoader, random_split
 
 from vla_diffusion.data.libero_dataset import ACTION_DIM, PROPRIO_DIM, LiberoChunkDataset
 from vla_diffusion.models.bc_mlp import BCMLPPolicy
+from vla_diffusion.training.data_utils import resolve_paths
+from vla_diffusion.training.losses import masked_mse
 
 
 def parse_args():
@@ -31,22 +32,6 @@ def parse_args():
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
-
-
-def masked_mse(pred, target, mask):
-    # mask: (B, T) -> broadcast over the action-dim axis
-    err = (pred - target) ** 2 * mask.unsqueeze(-1)
-    return err.sum() / mask.sum().clamp(min=1) / pred.shape[-1]
-
-
-def resolve_paths(patterns):
-    paths = []
-    for p in patterns:
-        matches = sorted(glob.glob(p))
-        paths.extend(matches if matches else [p])
-    if not paths:
-        raise SystemExit(f"No files matched: {patterns}")
-    return paths
 
 
 def main():

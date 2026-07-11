@@ -26,3 +26,6 @@ wandb/
 # Notebook checkpoints
 .ipynb_checkpoints/
 
+# Local Claude Code session state
+.claude/
+

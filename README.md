@@ -109,7 +109,12 @@ CUDA version. If `torch.cuda.is_available()` is `False` there, reinstall with an
       checkpoint runs a real closed-loop rollout in the robosuite/MuJoCo sim with correct
       proprio reconstruction from live obs. (3-epoch CPU smoke test only, 0% success as
       expected -- real training happens on the GPU box in Week 5's full run.)
-- [ ] Diffusion action head, single-task overfit sanity check (Week 3)
+- [x] Diffusion action head (FiLM-conditioned 1D residual conv stack, DDPM training loss via
+      `diffusers`, EMA weights, DDIM sampling for inference) -- single-task overfit sanity
+      check on 30 CPU epochs: masked eps-prediction training loss fell 0.242 -> 0.067, and
+      more importantly the actual DDIM-sampled action chunks on held-out validation obs got
+      3x closer to ground truth (`ddim_sample_mse` 0.372 -> 0.127), confirming the full
+      sampling process -- not just the training loss -- is learning the task.
 - [ ] Vision-language fusion trunk + classifier-free guidance, multi-task training (Week 4)
 - [ ] Full training run + closed-loop eval + ablations (DDIM steps, chunk horizon, CFG on/off)
       (Week 5)

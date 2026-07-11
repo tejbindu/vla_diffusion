@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Language-conditioned diffusion-policy VLA, trained and evaluated on LIBERO"
 requires-python = ">=3.10"
 dependencies = [
+    "diffusers>=0.39.0",
     "einops>=0.8.2",
     "h5py>=3.16.0",
     "hydra-core>=1.3.4",
