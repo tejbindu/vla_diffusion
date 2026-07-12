@@ -200,31 +200,31 @@ trains on a **3-task subset** (~2GB) with cached frozen embeddings and a small a
 the full pipeline could be built and validated cheaply before committing to a larger training
 run. Scaling to the full suite is a config change once that larger run is worth paying for.
 
-## Gotchas hit while building this (kept here since they cost real debugging time)
+## Environment notes
 
-- **LIBERO's editable install silently installs nothing.** Its `libero/` package dir has no
-  top-level `__init__.py`, so `pip install -e .`'s default PEP 660 finder registers an empty
-  package map (`import libero` fails with no error at install time). Fixed by installing with
-  `--config-settings editable_mode=compat`, which falls back to a plain sys.path insertion.
-- **robosuite>=1.5 breaks LIBERO's imports outright** — `single_arm_env.py` was renamed to
-  `manipulation_env.py`. Pinned to `robosuite==1.4.1`, the version LIBERO's own (very stale)
-  `requirements.txt` targets.
-- **robosuite 1.4.1 + a modern mujoco crashes at `env.reset()`** with a `TypeError` in
-  `mj_fullM()` — the C binding signature changed. Pinned `mujoco==3.1.6`, contemporaneous with
-  robosuite 1.4.1's release; verified working end-to-end (reset/step/closed-loop rollout).
-- **`bddl`, `robomimic`, `gym`, `future`, `easydict`, `cloudpickle`, `thop` are all real runtime
-  imports** in LIBERO's code that its `setup.py` declares zero dependencies for. Found by
-  actually running the pipeline and fixing each `ModuleNotFoundError` as it surfaced, then
-  pinned individually with `--no-deps` so their own stale transitive pins (e.g. `numpy==1.22.4`)
-  don't clobber the modern stack the rest of this project depends on.
-- **A stray `VIRTUAL_ENV` env var from an unrelated project silently redirects `uv pip
-  install`** to the wrong virtualenv (`uv add` ignores it and warns; `uv pip install` obeys it
-  with no warning). `unset VIRTUAL_ENV` before any `uv pip` command in this repo.
-- **A "fuller" 100-epoch training attempt on a shared, actively-used machine had to be killed
-  after 218 minutes with no visible progress** — its CPU share dropped from ~840% to ~250%
-  under real competing load with no way to tell how far it had gotten (Python fully buffers
-  stdout when redirected to a file). Correct call was to stop burning shared CPU chasing a
-  result that little training was never going to make strong anyway, and use an
-  already-validated smaller checkpoint instead. Training scripts now write `history.json` every
-  epoch (not just at the end) specifically so a killed run still leaves plottable progress on
-  disk.
+- **LIBERO's editable install registers no package.** Its `libero/` package directory has no
+  top-level `__init__.py`, so the default PEP 660 editable-install finder (`pip install -e .`)
+  builds an empty package map and `import libero` fails silently at install time. Resolved by
+  installing with `--config-settings editable_mode=compat`, which falls back to a plain
+  sys.path insertion.
+- **robosuite ≥1.5 is incompatible with LIBERO.** `environments/manipulation/single_arm_env.py`
+  was renamed to `manipulation_env.py` in 1.5, breaking LIBERO's imports. Pinned to
+  `robosuite==1.4.1`, the version LIBERO's `requirements.txt` targets.
+- **robosuite 1.4.1 requires an older MuJoCo release.** Paired with a current MuJoCo version,
+  `env.reset()` raises a `TypeError` in `mj_fullM()` due to a changed C binding signature.
+  Pinned `mujoco==3.1.6`, contemporaneous with robosuite 1.4.1; verified working end-to-end.
+- **Several runtime dependencies are undeclared in LIBERO's `setup.py`.** `bddl`, `robomimic`,
+  `gym`, `future`, `easydict`, `cloudpickle`, and `thop` are all imported by LIBERO's code at
+  runtime but absent from its declared dependencies. Identified by running the pipeline and
+  resolving each resulting `ModuleNotFoundError`, then pinned individually with `--no-deps` so
+  their stale transitive pins (e.g. `numpy==1.22.4`) don't override this project's dependency
+  stack.
+- **A stray `VIRTUAL_ENV` environment variable can redirect installs to the wrong virtualenv.**
+  `uv add` ignores it with a warning; `uv pip install` respects it silently. `unset VIRTUAL_ENV`
+  before running any `uv pip` command in this repo.
+- **Long CPU training runs on shared hardware are unreliable for progress tracking.** A
+  100-epoch run on a machine under concurrent load had its CPU allocation drop from ~840% to
+  ~250%, with no visible output for over three hours because Python fully buffers stdout when
+  redirected to a file. The run was stopped in favor of an already-validated shorter checkpoint.
+  Training scripts now write `history.json` after every epoch rather than only at completion,
+  so an interrupted run still leaves progress on disk.
