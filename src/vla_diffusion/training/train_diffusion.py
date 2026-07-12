@@ -131,6 +131,7 @@ def main():
             indent=2,
         )
 
+    history = []
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0.0
@@ -156,13 +157,18 @@ def main():
             train_loss += loss.item() * image.shape[0]
         train_loss /= n_train
 
+        record = {"epoch": epoch, "train_loss": train_loss}
         log = f"epoch {epoch:3d}  train_loss={train_loss:.5f}"
         if (epoch + 1) % args.sample_every == 0 or epoch == args.epochs - 1:
             sample_mse = sample_quality_check(
                 ema.shadow, val_loader, infer_scheduler, args.chunk_size, args.num_inference_steps, args.device
             )
+            record["ddim_sample_mse"] = sample_mse
             log += f"  ddim_sample_mse={sample_mse:.5f}"
         print(log)
+        history.append(record)
+        with open(os.path.join(args.outdir, "history.json"), "w") as fp:
+            json.dump(history, fp, indent=2)
 
     torch.save(model.state_dict(), os.path.join(args.outdir, "last.pt"))
     torch.save(ema.shadow.state_dict(), os.path.join(args.outdir, "ema.pt"))

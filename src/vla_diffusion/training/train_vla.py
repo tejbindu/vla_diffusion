@@ -148,6 +148,7 @@ def main():
             indent=2,
         )
 
+    history = []
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0.0
@@ -177,13 +178,22 @@ def main():
             train_loss += loss.item() * vision_embed.shape[0]
         train_loss /= n_train
 
+        record = {"epoch": epoch, "train_loss": train_loss}
         log = f"epoch {epoch:3d}  train_loss={train_loss:.5f}"
         if (epoch + 1) % args.sample_every == 0 or epoch == args.epochs - 1:
             correct_mse, wrong_mse = language_sensitivity_check(
                 ema.shadow, val_loader, infer_scheduler, args.chunk_size, args.num_inference_steps, args.device
             )
+            record["correct_lang_mse"] = correct_mse
+            record["wrong_lang_mse"] = wrong_mse
             log += f"  correct_lang_mse={correct_mse:.5f}  wrong_lang_mse={wrong_mse:.5f}"
         print(log)
+        history.append(record)
+        # Written every epoch (not just at the end) so a killed/interrupted run
+        # still leaves plottable progress on disk -- learned this the hard way
+        # after killing an unmonitorable 100-epoch run in Week 5.
+        with open(os.path.join(args.outdir, "history.json"), "w") as fp:
+            json.dump(history, fp, indent=2)
 
     torch.save(model.state_dict(), os.path.join(args.outdir, "last.pt"))
     torch.save(ema.shadow.state_dict(), os.path.join(args.outdir, "ema.pt"))

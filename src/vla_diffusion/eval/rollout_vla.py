@@ -39,13 +39,14 @@ def parse_args():
     parser.add_argument("--guidance-scale", type=float, default=1.0, help="1.0 = no CFG (skips the extra uncond pass)")
     parser.add_argument("--camera-size", type=int, default=128)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--save-gif", default=None, help="if set, saves the first episode's agentview frames as a GIF here")
     return parser.parse_args()
 
 
 def run_episodes(
     model, clip_encoder, scheduler, env, task, action_stats, chunk_size,
     num_episodes, max_steps, exec_horizon, num_inference_steps, guidance_scale, device,
-    verbose=True,
+    verbose=True, save_gif_path=None,
 ):
     text_embed = clip_encoder.encode_text([task.language]).to(device)
 
@@ -58,6 +59,7 @@ def run_episodes(
         plan_step = 0
         success = False
         t = 0
+        frames = [obs["agentview_image"]] if (save_gif_path and ep == 0) else None
         for t in range(max_steps):
             if action_plan is None or plan_step >= exec_horizon:
                 image = get_image(obs).unsqueeze(0).to(device)
@@ -77,6 +79,8 @@ def run_episodes(
             action = action_plan[plan_step]
             plan_step += 1
             obs, reward, done, info = env.step(action)
+            if frames is not None:
+                frames.append(obs["agentview_image"])
 
             if env.check_success():
                 success = True
@@ -88,6 +92,13 @@ def run_episodes(
         episode_steps.append(t + 1)
         if verbose:
             print(f"episode {ep:3d}  success={success}  steps={t + 1}")
+
+        if frames is not None:
+            import imageio
+
+            os.makedirs(os.path.dirname(save_gif_path) or ".", exist_ok=True)
+            imageio.mimsave(save_gif_path, frames, duration=50, loop=0)  # 50ms/frame = 20fps
+            print(f"Wrote {len(frames)}-frame GIF to {save_gif_path}")
 
     return {
         "success_rate": successes / num_episodes,
@@ -125,6 +136,7 @@ def main():
         model, clip_encoder, scheduler, env, task, action_stats, chunk_size,
         num_episodes=args.num_episodes, max_steps=args.max_steps, exec_horizon=args.exec_horizon,
         num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale, device=args.device,
+        save_gif_path=args.save_gif,
     )
     env.close()
 
