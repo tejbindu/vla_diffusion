@@ -16,11 +16,10 @@ import argparse
 import json
 import os
 
-import numpy as np
 import torch
-from robosuite.utils.transform_utils import quat2axisangle
 
 from vla_diffusion.data.libero_dataset import ACTION_DIM, PROPRIO_DIM
+from vla_diffusion.eval.common import build_env, denormalize, get_image, get_proprio
 from vla_diffusion.models.bc_mlp import BCMLPPolicy
 
 
@@ -37,39 +36,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_proprio(obs):
-    joint_states = obs["robot0_joint_pos"]
-    gripper_states = obs["robot0_gripper_qpos"]
-    ee_states = np.hstack([obs["robot0_eef_pos"], quat2axisangle(obs["robot0_eef_quat"])])
-    return np.concatenate([joint_states, gripper_states, ee_states]).astype(np.float32)
-
-
-def get_image(obs, camera="agentview_image"):
-    img = torch.from_numpy(obs[camera].copy()).float().permute(2, 0, 1) / 255.0
-    return img
-
-
-def denormalize(action_norm, stats):
-    action_min = np.array(stats["min"])
-    action_max = np.array(stats["max"])
-    return (action_norm + 1) / 2 * (action_max - action_min) + action_min
-
-
-def build_env(task_suite, task_name_substr, camera_size):
-    from libero.libero import benchmark, get_libero_path
-    from libero.libero.envs import OffScreenRenderEnv
-
-    bm = benchmark.get_benchmark_dict()[task_suite]()
-    matches = [i for i, name in enumerate(bm.get_task_names()) if task_name_substr in name]
-    if not matches:
-        raise SystemExit(f"No task in {task_suite} matches '{task_name_substr}'. Options: {bm.get_task_names()}")
-    task = bm.get_task(matches[0])
-    bddl_file = os.path.join(get_libero_path("bddl_files"), task.problem_folder, task.bddl_file)
-    print(f"Task: {task.name}")
-    env = OffScreenRenderEnv(bddl_file_name=bddl_file, camera_heights=camera_size, camera_widths=camera_size)
-    return env
-
-
 def main():
     args = parse_args()
     ckpt_dir = os.path.dirname(args.checkpoint)
@@ -83,7 +49,8 @@ def main():
     model.load_state_dict(torch.load(args.checkpoint, map_location=args.device))
     model.to(args.device).eval()
 
-    env = build_env(args.task_suite, args.task_name, args.camera_size)
+    env, task = build_env(args.task_suite, args.task_name, args.camera_size)
+    print(f"Task: {task.name}")
 
     successes = 0
     for ep in range(args.num_episodes):

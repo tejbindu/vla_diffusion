@@ -129,7 +129,42 @@ CUDA version. If `torch.cuda.is_available()` is `False` there, reinstall with an
       LIBERO-Object tasks all share the identical shelf scene -- vision+proprio alone cannot
       disambiguate which object to pick, so any advantage for correct language is real
       cross-modal conditioning, not a shortcut.
-- [ ] Full training run + closed-loop eval + ablations (DDIM steps, chunk horizon, CFG on/off)
+- [x] Closed-loop eval harness for the full VLA (`eval/rollout_vla.py`) + three ablations, run
+      against the Week 4 checkpoint (30 CPU epochs). Read the honest framing below before the
+      numbers: **this checkpoint is a CPU sanity-scale artifact, not a trained policy** -- real
+      training (more epochs, more demos, image augmentation) happens on the rented GPU. What
+      Week 5 actually delivers is the eval/ablation *infrastructure*, fully built and validated
+      end-to-end; these numbers are what it reports today, and the same code will report
+      meaningful numbers the moment it's pointed at a properly-trained checkpoint.
+      - **DDIM step count** (`scripts/ablate_ddim_cfg.py`, open-loop sample-MSE against held-out
+        validation actions -- no sim needed): a clean, textbook diffusion-model curve. 1 step is
+        unusable (MSE 0.72, essentially guessing from pure noise); jumps to 0.089 at 3 steps;
+        flat through 20 steps (~0.09). The practical takeaway: this policy needs ~3-5 DDIM steps,
+        not the 100 it was trained with -- most of the diffusion-vs-single-forward-pass latency
+        gap against a VLA like OpenVLA is avoidable.
+      - **CFG guidance scale**: no consistent effect on sample-MSE at this training budget
+        (values bounce between 0.073 and 0.107 across steps x scale with no monotonic trend).
+        Reported as-is rather than oversold -- 30 epochs on 3 tasks likely isn't enough training
+        for the unconditional branch to have learned a meaningfully different distribution yet.
+      - **exec_horizon / receding-horizon replanning** (`scripts/ablate_exec_horizon.py`,
+        closed-loop, real MuJoCo rollouts, 3 tasks x {1, 4, 8} x 5 episodes = 45 episodes): total
+        diffusion-sampling compute per 100-step episode scales roughly linearly with replanning
+        frequency -- ~9.3s of sampling at exec_horizon=1 (replan every step) vs. ~1.0s at
+        exec_horizon=8 (replan once per full chunk), a ~9x reduction. The other half of this
+        tradeoff -- does replanning less often hurt success once drift accumulates -- isn't
+        visible yet because success is 0% at every setting with this checkpoint; that's the
+        headline number below, not a failure of the ablation.
+      - **Headline closed-loop success rate: 0/45 = 0%** across all 3 trained tasks and all
+        exec_horizon settings. Expected and unremarkable given the training budget (50 demos/task,
+        no augmentation, 30 CPU epochs) -- the value of this week is that the full closed-loop
+        pipeline (live CLIP encoding -> fusion trunk -> CFG-guided DDIM sampling -> receding-horizon
+        control -> real sim execution -> success detection) runs correctly end-to-end, which is
+        the harder engineering problem than the training itself.
+      - A 100-epoch "fuller" training attempt was started on this same CPU machine and killed
+        after 218 minutes with no completed epochs visible (the machine is an actively-used
+        desktop, not a dedicated box -- its CPU share dropped from ~840% to ~250% under real
+        desktop load). Correct call was to not keep burning desktop CPU chasing a result that
+        was never going to be strong without the planned GPU budget anyway.
       (Week 5)
 - [ ] README writeup with plots/rollout GIFs, optional ROS2 wrapper, optional second suite
       (Week 6)
