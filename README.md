@@ -228,23 +228,3 @@ run. Scaling to the full suite is a config change once that larger run is worth 
   already-validated smaller checkpoint instead. Training scripts now write `history.json` every
   epoch (not just at the end) specifically so a killed run still leaves plottable progress on
   disk.
-
-## Status / roadmap
-
-- [x] Environment and data pipeline — LIBERO installed and verified; per-task download helper
-      (avoids pulling the full suite); data-inspection script validated on real data (flagged
-      5/50 episodes in one task as length outliers)
-- [x] Baseline imitation-learning policy (BC-MLP) — chunked/normalized dataset; trains and
-      drives a real closed-loop rollout in the sim
-- [x] Diffusion action head — FiLM-conditioned 1D residual conv stack (DDPM/DDIM via
-      `diffusers`, EMA weights); single-task overfit sanity check confirms the sampling
-      process learns, not just the training loss
-- [x] Vision-language fusion trunk + classifier-free guidance — frozen CLIP embeddings, learned
-      fusion transformer, multi-task training; language-sensitivity check confirms real
-      cross-modal conditioning (see [Results](#results))
-- [x] Closed-loop evaluation harness + ablations — DDIM-steps, CFG-scale, and exec-horizon
-      sweeps, all run against real data (see [Results](#results))
-- [x] Plots, demo GIF, reference ROS2 wrapper
-- [ ] **Next**: a full-scale training run on a rented GPU — more epochs, the full 10-task
-      suite, image augmentation. This is where the closed-loop success rate is expected to
-      actually move off 0% — everything upstream of it is now validated and ready to point at it.
