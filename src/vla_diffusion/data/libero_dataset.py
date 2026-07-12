@@ -73,12 +73,12 @@ class LiberoChunkDataset(Dataset):
     def action_stats_dict(self):
         return {"min": self.action_min.tolist(), "max": self.action_max.tolist()}
 
-    def __getitem__(self, idx):
-        path, demo_key, t, ep_len = self.index[idx]
+    def _get_proprio_action_language(self, path, demo_key, t, ep_len):
+        """The part of __getitem__ that doesn't touch images -- factored out
+        so LiberoClipDataset (which uses cached CLIP embeddings instead of
+        raw pixels) can reuse it without paying for an unused image decode.
+        """
         demo = self._get_file(path)["data"][demo_key]
-
-        image = demo["obs"][self.image_key][t]
-        image = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
 
         proprio = np.concatenate(
             [demo["obs"][k][t] for k in PROPRIO_KEYS], axis=0
@@ -94,9 +94,19 @@ class LiberoChunkDataset(Dataset):
             mask[self.chunk_size - pad_len :] = 0.0
 
         return {
-            "image": image,
             "proprio": torch.from_numpy(proprio),
             "action_chunk": torch.from_numpy(actions),
             "action_mask": torch.from_numpy(mask),
             "language": self.task_language[path],
         }
+
+    def __getitem__(self, idx):
+        path, demo_key, t, ep_len = self.index[idx]
+        demo = self._get_file(path)["data"][demo_key]
+
+        image = demo["obs"][self.image_key][t]
+        image = torch.from_numpy(image.copy()).float().permute(2, 0, 1) / 255.0
+
+        item = self._get_proprio_action_language(path, demo_key, t, ep_len)
+        item["image"] = image
+        return item

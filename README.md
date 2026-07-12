@@ -115,7 +115,20 @@ CUDA version. If `torch.cuda.is_available()` is `False` there, reinstall with an
       more importantly the actual DDIM-sampled action chunks on held-out validation obs got
       3x closer to ground truth (`ddim_sample_mse` 0.372 -> 0.127), confirming the full
       sampling process -- not just the training loss -- is learning the task.
-- [ ] Vision-language fusion trunk + classifier-free guidance, multi-task training (Week 4)
+- [x] Vision-language fusion trunk (frozen CLIP ViT-B/32 vision+text, cached embeddings per the
+      compute plan, small self-attention transformer fusing vision/text/proprio into the
+      diffusion head's conditioning vector) + classifier-free guidance, multi-task training
+      (Week 4). Trained on all 3 downloaded LIBERO-Object tasks at once (20,803 samples, 30 CPU
+      epochs): training loss fell 0.158 -> 0.049. More importantly, a language-sensitivity
+      check -- DDIM-sampled action-chunk MSE against ground truth when conditioned on the
+      correct instruction vs. a wrong (shuffled) one from a different task in the batch --
+      confirmed the model is actually using language, not just vision+proprio: inconclusive at
+      epoch 9 (correct=0.172 vs wrong=0.150, too early to trust), but by epoch 19 correct
+      pulled ahead (0.100 vs 0.115) and the gap held through epoch 29 (0.076 vs 0.088, ~13%
+      relative advantage for correct language). This is a meaningful check specifically because
+      LIBERO-Object tasks all share the identical shelf scene -- vision+proprio alone cannot
+      disambiguate which object to pick, so any advantage for correct language is real
+      cross-modal conditioning, not a shortcut.
 - [ ] Full training run + closed-loop eval + ablations (DDIM steps, chunk horizon, CFG on/off)
       (Week 5)
 - [ ] README writeup with plots/rollout GIFs, optional ROS2 wrapper, optional second suite
